@@ -20,6 +20,10 @@ A Model Context Protocol (MCP) server that provides AI-enhanced code search capa
   - [search](#search)
   - [search_prompt_guide](#search_prompt_guide)
   - [fetch_content](#fetch_content)
+- [CI/CD](#cicd)
+  - [Required Secrets](#required-secrets)
+  - [Image Tags](#image-tags)
+  - [Pulling the Image](#pulling-the-image)
 - [Development](#development)
   - [Linting and Formatting](#linting-and-formatting)
 
@@ -128,6 +132,58 @@ Generate a context-aware guide for constructing effective search queries based o
 
 ### 📂 fetch_content
 Retrieve file contents or explore directory structures from repositories.
+
+## CI/CD
+
+This repository ships a GitHub Actions workflow (`.github/workflows/docker-build.yml`) that automatically builds a multi-arch Docker image (linux/amd64 + linux/arm64) and pushes it to **two** container registries on every push to `master`:
+
+1. **GitHub Container Registry (GHCR)** — `ghcr.io/gz-ai-frontier-lab/sourcegraph-mcp`
+2. **Aliyun Container Registry (ACR)** — `crpi-maegwt5ukh5kiibp.cn-guangzhou.personal.cr.aliyuncs.com/gz-ai-frontier-lab/sourcegraph-mcp`
+
+> Triggers on pushes to `master` only; changes limited to `*.md`, `docs/`, `LICENSE`, `.gitignore` are skipped to save CI minutes. Concurrent runs on the same branch are cancelled in favor of the newest run.
+
+### Required Secrets
+
+GHCR authentication uses the auto-injected `GITHUB_TOKEN` (no setup needed). Aliyun ACR authentication requires **two organization-level secrets** configured at <https://github.com/organizations/gz-ai-frontier-lab/settings/secrets/actions>:
+
+| Secret Name                    | Value                              | Source                                                              |
+| ------------------------------ | ---------------------------------- | ------------------------------------------------------------------- |
+| `ALIYUN_REGISTRY_USERNAME`     | `Midayang` (Aliyun account full name) | See "制品描述" in your ACR instance console                        |
+| `ALIYUN_REGISTRY_PASSWORD`     | Registry access credential password | <https://cr.console.aliyun.com/cn-guangzhou/instances/credentials> |
+
+Org-level secrets are automatically inherited by all repos under `gz-ai-frontier-lab`, so no per-repo configuration is needed.
+
+### Image Tags
+
+Each successful build publishes the following tags to **both** registries:
+
+| Tag pattern      | Example             | Description                                  |
+| ---------------- | ------------------- | -------------------------------------------- |
+| `latest`         | `latest`            | Always points to the latest `master` build   |
+| `master`         | `master`            | Branch name (useful for branch-based deploys)|
+| `sha-<short>`    | `sha-0114408`       | The 7-character git commit short SHA         |
+
+### Pulling the Image
+
+```bash
+# From Aliyun ACR (recommended for China-region deployments)
+docker pull crpi-maegwt5ukh5kiibp.cn-guangzhou.personal.cr.aliyuncs.com/gz-ai-frontier-lab/sourcegraph-mcp:latest
+
+# From GitHub Container Registry
+docker pull ghcr.io/gz-ai-frontier-lab/sourcegraph-mcp:latest
+
+# Pin to a specific commit
+docker pull crpi-maegwt5ukh5kiibp.cn-guangzhou.personal.cr.aliyuncs.com/gz-ai-frontier-lab/sourcegraph-mcp:sha-0114408
+```
+
+Then run with the same flags documented in [Using Docker](#using-docker):
+
+```bash
+docker run -p 8000:8000 -p 8080:8080 \
+  -e SRC_ENDPOINT=https://sourcegraph.com \
+  -e SRC_ACCESS_TOKEN=your-token \
+  crpi-maegwt5ukh5kiibp.cn-guangzhou.personal.cr.aliyuncs.com/gz-ai-frontier-lab/sourcegraph-mcp:latest
+```
 
 ## Development
 
