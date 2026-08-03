@@ -41,7 +41,11 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["sourcegraph_mcp"]
+packages = [
+    "sourcegraph_mcp",
+    "sourcegraph_mcp.backends",
+    "sourcegraph_mcp.core",
+]
 package-dir = {"sourcegraph_mcp" = "src"}
 
 [tool.ruff]
