@@ -135,16 +135,15 @@ Retrieve file contents or explore directory structures from repositories.
 
 ## CI/CD
 
-This repository ships a GitHub Actions workflow (`.github/workflows/docker-build.yml`) that automatically builds a multi-arch Docker image (linux/amd64 + linux/arm64) and pushes it to **two** container registries on every push to `master`:
+This repository ships a GitHub Actions workflow (`.github/workflows/docker-build.yml`) that automatically builds a multi-arch Docker image (linux/amd64 + linux/arm64) and pushes it to **Aliyun Container Registry (ACR)** on every push to `master`:
 
-1. **GitHub Container Registry (GHCR)** — `ghcr.io/gz-ai-frontier-lab/sourcegraph-mcp`
-2. **Aliyun Container Registry (ACR)** — `crpi-maegwt5ukh5kiibp.cn-guangzhou.personal.cr.aliyuncs.com/gz-ai-frontier-lab/sourcegraph-mcp`
+- **Aliyun ACR** — `crpi-maegwt5ukh5kiibp.cn-guangzhou.personal.cr.aliyuncs.com/gz-ai-frontier-lab/sourcegraph-mcp`
 
-> Triggers on pushes to `master` only; changes limited to `*.md`, `docs/`, `LICENSE`, `.gitignore` are skipped to save CI minutes. Concurrent runs on the same branch are cancelled in favor of the newest run.
+> Triggers on pushes to `master` (changes limited to `*.md`, `docs/`, `LICENSE`, `.gitignore` are skipped). Also supports manual triggering via `workflow_dispatch` from the Actions tab. Concurrent runs on the same branch are cancelled in favor of the newest run.
 
 ### Required Secrets
 
-GHCR authentication uses the auto-injected `GITHUB_TOKEN` (no setup needed). Aliyun ACR authentication requires **two organization-level secrets** configured at <https://github.com/organizations/gz-ai-frontier-lab/settings/secrets/actions>:
+Aliyun ACR authentication requires **two organization-level secrets** configured at <https://github.com/organizations/gz-ai-frontier-lab/settings/secrets/actions>:
 
 | Secret Name                    | Value                              | Source                                                              |
 | ------------------------------ | ---------------------------------- | ------------------------------------------------------------------- |
@@ -155,7 +154,7 @@ Org-level secrets are automatically inherited by all repos under `gz-ai-frontier
 
 ### Image Tags
 
-Each successful build publishes the following tags to **both** registries:
+Each successful build publishes the following tags:
 
 | Tag pattern      | Example             | Description                                  |
 | ---------------- | ------------------- | -------------------------------------------- |
@@ -166,17 +165,15 @@ Each successful build publishes the following tags to **both** registries:
 ### Pulling the Image
 
 ```bash
-# From Aliyun ACR (recommended for China-region deployments)
+# From Aliyun ACR
 docker pull crpi-maegwt5ukh5kiibp.cn-guangzhou.personal.cr.aliyuncs.com/gz-ai-frontier-lab/sourcegraph-mcp:latest
-
-# From GitHub Container Registry
-docker pull ghcr.io/gz-ai-frontier-lab/sourcegraph-mcp:latest
 
 # Pin to a specific commit
 docker pull crpi-maegwt5ukh5kiibp.cn-guangzhou.personal.cr.aliyuncs.com/gz-ai-frontier-lab/sourcegraph-mcp:sha-0114408
 ```
 
 Then run with the same flags documented in [Using Docker](#using-docker):
+
 
 ```bash
 docker run -p 8000:8000 -p 8080:8080 \
