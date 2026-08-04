@@ -48,6 +48,9 @@ packages = [
 ]
 package-dir = {"sourcegraph_mcp" = "src"}
 
+[tool.setuptools.package-data]
+sourcegraph_mcp = ["prompts/*.yaml"]
+
 [tool.ruff]
 line-length = 120
 target-version = "py313"
