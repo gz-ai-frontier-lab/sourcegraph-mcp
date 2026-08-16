@@ -106,7 +106,7 @@ class SourcegraphClient(SearchClientProtocol):
         """
         params = {
             "q": query,
-            "t": "keyword",
+            "t": "standard",
             "v": "V3",
             "cm": "true",  # chunk matches
             "cl": "5",

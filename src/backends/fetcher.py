@@ -58,7 +58,7 @@ class SourcegraphContentFetcher(ContentFetcherProtocol):
         # Try file first, then directory
         try:
             file_content = self._get_sourcegraph_file_content(repository, path)
-            if file_content:
+            if file_content is not None:
                 return file_content
         except ValueError:
             pass  # File not found, try as directory
@@ -80,11 +80,8 @@ class SourcegraphContentFetcher(ContentFetcherProtocol):
                         path
                         name
                         content
-                        totalLines
+                        byteSize
                         binary
-                        contentType
-                        richHTML
-                        languages
                     }
                 }
             }
@@ -108,12 +105,21 @@ class SourcegraphContentFetcher(ContentFetcherProtocol):
             if "errors" in data:
                 raise ValueError("invalid arguments the given path or repository does not exist")
 
-            content = self._safe_get(data, ["data", "repository", "commit", "file", "content"], default=None)
+            file_data = self._safe_get(data, ["data", "repository", "commit", "file"], default=None)
+            if file_data is None:
+                raise ValueError("invalid arguments the given path or repository does not exist")
 
-            if content and len(content) > MAX_FILE_SIZE:
-                total_lines = self._safe_get(
-                    data, ["data", "repository", "commit", "file", "totalLines"], default="unknown"
+            if file_data.get("binary"):
+                byte_size = file_data.get("byteSize", "unknown")
+                return (
+                    f"[BINARY FILE: '{path}' is a binary file ({byte_size} bytes) and its content is not shown. "
+                    f"Use 'search' to find text-based files instead.]"
                 )
+
+            content = file_data.get("content")
+            byte_size = file_data.get("byteSize", 0) or 0
+
+            if content is not None and byte_size > MAX_FILE_SIZE:
                 truncated_content = content[:MAX_FILE_SIZE]
                 # Find last complete line
                 last_newline = truncated_content.rfind("\n")
@@ -122,7 +128,7 @@ class SourcegraphContentFetcher(ContentFetcherProtocol):
 
                 return (
                     f"{truncated_content}\n\n"
-                    f"[FILE TRUNCATED: File too large ({len(content):,} chars, {total_lines} lines). "
+                    f"[FILE TRUNCATED: File too large ({byte_size:,} bytes, {len(content):,} chars). "
                     f"Showing first {len(truncated_content):,} chars]"
                 )
 
