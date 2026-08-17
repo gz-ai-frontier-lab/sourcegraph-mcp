@@ -1,99 +1,73 @@
 # Tool descriptions
 tools:
-  search: >
+  search: |
     Search codebases using Sourcegraph.
+
+    **Critical for this instance**: Do NOT use bare double quotes (e.g. `"foo bar"` returns no results) and do NOT rely on space-separated keywords (unreliable in standard mode). Use `content:"..."` for phrases and explicit `AND` between keywords.
 
     **Parameters:**
     - query (required): The search query string
     - limit (optional): Maximum number of results to return (default: 30, min: 1, max: 100)
-    
-    **Workflow with other tools:**
-    1. Call `search_prompt_guide` first when unfamiliar with query syntax
-    2. Start by searching for repositories (`type:repo`) to identify relevant codebases
-    3. Use `fetch_content` to explore repository structure and understand the codebase
-    4. Refine searches with specific file paths, language filters, and patterns
-    5. Balance between search and fetch_content - search is for discovery, fetch_content is for detailed exploration
-    
+
     **Quick Reference:**
-    - Default search: `error handler` (searches file content)
-    - Repository filter: `repo:github\.com/org/project` (regex)
-    - File path filter: `file:\.go$` or `f:src/`
-    - Language filter: `lang:python` or `language:go`
-    - Negation: `-file:test` (exclude test files)
+    - Default search: `error AND handler` (searches file content that includes both `error' and `handler')
+    - Phrase with special chars (spaces, colons, quotes): `content:"search text"`, escape inner quotes as `\"` (e.g. `content:"func foo(\"bar\")"`)
+    - Repository filter: `repo:github\.com/org/project` (regex; alias `r:`)
+    - File path filter: `file:\.go$` (regex; alias `f:`)
+    - Language filter: `lang:python`
+    - Negation: `-file:test` (exclude test files) `-repo:lab` (exclude lab repos)
     - Boolean operators: `error AND handler`, `lang:java OR lang:kotlin`
     - Symbol search: `type:symbol` for functions/classes
-    - Repository search: `r:repo_name type:repo` for finding repos
+    - Repository search: `repo:org type:repo` for finding repos
 
     **Examples:**
-    1. Find Go function definitions: `"func SendMessage" lang:go`
-    2. Find Python class definitions: `"class UserService" lang:python`
-    3. Find Go struct definitions: `"type UserService struct" lang:go`
-    4. Find API endpoints: `router.Get lang:go` or `"@app.route" lang:python`
-    5. Find configuration files: `f:config` or `f:\.env$`
-    6. Exclude test files: `SendMessage -f:test`
-    7. Find repositories: `r:github.com/kubernetes type:repo`
+    1. Find Go function definitions: `content:"func SendMessage" lang:go`
+    2. Find Python class definitions: `content:"class UserService" lang:python`
+    3. Find Go struct definitions: `content:"type UserService struct" lang:go`
+    4. Find API endpoints: `router.Get lang:go` or `content:"@app.route" lang:python`
+    5. Find configuration files: `file:config` or `file:\.(properties|yaml|yml|conf|ini|toml)$`
+    6. Exclude test files: `content:"func Process" -file:test`
+    7. Find repositories: `repo:github\.com/kubernetes type:repo`
 
-    # Tips
-    - Don't search for more than three different keywords at once (e.g., `foo bar baz bat`)
-    - Group phrases with quotes "" and combine keywords with AND/OR operators
-    
+    **Tips:**
+    - Call `search_prompt_guide` first before any search to learn the full syntax.
+    - Keep to 3 or fewer keywords (`foo AND bar AND baz`).
+    - Use `content:"..."` for exact phrases or any text containing quotes, colons, or spaces.
+
   search_prompt_guide: >
-    Generates a Sourcegraph-specific query guide to help construct effective searches.
-    You MUST CALL THIS TOOL EXACTLY ONCE IN THE BEGINNING BEFORE ANY search or fetch_content
-    
-  fetch_content: >
+    Call this BEFORE ANY search when you are not certain of this instance's query syntax. It returns the full query syntax guide, including the `content:"..."` and explicit `AND` rules this instance requires.
+
+  fetch_content: |
     Fetches file content or directory structure from repositories.
-    
-    **Workflow integration:**
-    1. After finding repositories with `search`, use this to explore their structure
-    2. Start with root directory (empty path) to understand project layout
-    3. Check README.md and documentation files for context
-    4. Navigate to specific directories based on initial exploration
-    5. Fetch specific files found through search results
-    
-    **Important**: Use this tool strategically in conjunction with search - avoid excessive calls that may impact performance.
-    
-    **Best practices:**
-    - Always start with repository root to understand structure
-    - Look for common patterns: `cmd/`, `src/`, `pkg/`, `internal/`, `api/`
-    - Check configuration files: `package.json`, `go.mod`, `requirements.txt`
-    - Read documentation: `README.md`, `CONTRIBUTING.md`, `docs/`
 
-    Parameters:
-    - repo: Repository path (e.g., "github.com/org/project")
-    - path: File or directory path within the repository (optional)
+    **Parameters:**
+    - repo (required): Repository path (e.g., "github.com/org/project")
+    - path (optional): File or directory path within the repository
 
-    Returns:
-    - If path is a file: Returns the file content
-    - If path is a directory or empty: Returns directory tree listing (depth 2)
+    **Returns:**
+    - If path is a file: the file content (files larger than 1MB are truncated)
+    - If path is a directory or empty: directory tree listing (depth 2)
+    - Binary files: a short note instead of raw bytes
 
-    Examples:
-    # Get repository root structure (always start here)
-    repo: "github.com/kubernetes/kubernetes"
-    path: ""
+    **Usage tips:**
+    - Use with `search`: search for discovery, fetch_content for exploration.
+    - Start with root directory (empty path) to understand project layout.
+    - Check README.md, package.json, go.mod, requirements.txt for context.
+    - Prefer `search` for discovery; fetch only specific, smaller files.
 
-    # Check project documentation
-    repo: "github.com/kubernetes/kubernetes"
-    path: "README.md"
-
-    # Explore source directory
-    repo: "github.com/golang/go"
-    path: "src"
-
-    # Get specific file content
-    repo: "github.com/golang/go"
-    path: "src/runtime/proc.go"
-
-    # Check package configuration
-    repo: "github.com/facebook/react"
-    path: "package.json"
+    **Examples:**
+    - `repo="github.com/kubernetes/kubernetes" path=""` — repo root listing (start here)
+    - `repo="github.com/kubernetes/kubernetes" path="README.md"` — single file content
+    - `repo="github.com/golang/go" path="src"` — directory tree
+    - `repo="github.com/golang/go" path="src/runtime/proc.go"` — specific file content
+    - `repo="github.com/facebook/react" path="package.json"` — configuration file
 
 # Guides
 guides:
-  codesearch_guide: >
+  codesearch_guide: |
     # Sourcegraph Query Language Guide
 
-    This guide explains the Sourcegraph query language for searching code.
+    > **This instance**: Do NOT use bare double quotes (e.g. `"foo bar"` returns no results) and do NOT rely on space-separated keywords (unreliable in standard mode). Use `content:"..."` for phrases and explicit `AND` between keywords.
 
     ## Syntax Overview
 
@@ -103,25 +77,25 @@ guides:
 
     ## Search Pattern Types
 
-    ### Keyword Search (Default)
+    ### Standard Search (Default)
     | Pattern | Description | Example |
     |---------|-------------|---------|
-    | `foo bar` | Match both terms anywhere | `error handler` |
-    | `"foo bar"` | Match exact phrase | `"connection error"` |
+    | `foo AND bar` | Both terms (set intersection). Join multiple keywords with explicit `AND` instead of spaces | `error AND handler` |
+    | `content:"foo bar"` | Literal phrase, including spaces/colons/quotes. Escape inner double quotes as `\"` | `content:"connection error"` |
     | `/foo.*bar/` | Regular expression | `/func.*test/` |
-    | `foo OR bar` | Match either term | `error OR warning` |
+    | `foo OR bar` | Either term | `error OR warning` |
 
     ### Regular Expression Mode
-    Enable with `patterntype:regexp` or `(.*)`  toggle.
+    Use `patterntype:regexp` to force regex mode, or write slash-delimited patterns like `/foo.*bar/`.
 
     ## Filters Reference
 
     ### General Filters
     | Filter | Description | Examples |
     |--------|-------------|----------|
-    | `repo:regexp` | Include repos matching pattern | `repo:github\.com/sourcegraph` |
+    | `repo:regexp` | Include repos matching pattern (alias `r:`) | `repo:github\.com/sourcegraph` |
     | `-repo:regexp` | Exclude repos | `-repo:test` |
-    | `file:regexp` | Include files matching path | `file:\.go$` |
+    | `file:regexp` | Include files matching path (alias `f:`) | `file:\.go$` |
     | `-file:regexp` | Exclude files | `-file:test` |
     | `lang:name` | Filter by language | `lang:typescript` |
     | `type:symbol` | Symbol search | `type:symbol HTTPServer` |
@@ -135,9 +109,9 @@ guides:
 
     ## Boolean Operators
 
-    - **AND**: Space between terms (implicit) or explicit `AND`
-    - **OR**: Use `OR` between terms
-    - **NOT**: Use `NOT` or `-` prefix
+    - **AND** (or `and`): set intersection. Join multiple keywords with `AND` instead of spaces
+    - **OR** (or `or`): either term
+    - **NOT** (or `-` prefix): exclude
 
     ```
     lang:go AND error
@@ -148,73 +122,37 @@ guides:
 
     ## Examples
 
-    1. **Find Python class definitions**:
-       ```
-       class MyClass lang:python
-       ```
-
-    2. **Find function implementations**:
-       ```
-       SendMessage lang:go -file:test
-       ```
-
-    3. **Search multiple repos**:
-       ```
-       repo:org/projectA|org/projectB error
-       ```
-
-    4. **Exclude test files**:
-       ```
-       func Process -file:test -file:mock
-       ```
-
-    5. **Find TODOs in Go**:
-       ```
-       TODO lang:go select:file
-       ```
-
-    ## Progressive Search Strategy
-    1. **Start broad**: `ProcessOrder` - search everywhere
-    2. **Find repositories**: `ProcessOrder type:repo` - discover relevant repos
-    3. **Explore with fetch_content**: Use found repos to understand structure
-    4. **Progressively refine**: Make your searches more specific based on initial results
-    5. **Exclude noise**: Remove test files or other irrelevant results: `ProcessOrder -file:test lang:go`
-    6. **Target repos**: `repo:order-service ProcessOrder lang:go` - specific
+    1. **Find Python class definitions**: `content:"class MyClass" lang:python`
+    2. **Find function implementations**: `SendMessage lang:go -file:test`
+    3. **Search multiple repos**: `repo:org/projectA|org/projectB error`
+    4. **Exclude test files**: `content:"func Process" -file:test -file:mock`
+    5. **Find TODOs in Go**: `TODO lang:go select:file`
 
     ## Common Patterns
-    - **Function definitions**: `type:symbol FunctionName lang:go` or normal search if you want to view the implementation.
-    - **Class definitions**: `"class ClassName" lang:python`
-    - **Literal search**: `"func ProcessOrder" lang:go`
+
+    - **Function definitions**: `type:symbol FunctionName lang:go`
+    - **Class definitions**: `content:"class ClassName" lang:python`
+    - **Literal search**: `content:"func ProcessOrder" lang:go`
     - **API routes**: `router.HandleFunc lang:go`
-    - **Imports**: `"from package" lang:python`
-    - **Test exclusion**: `-file:test -file:mock -file:stub`
-    - **Config files**: `file:config` or `file:\.env`
+    - **Imports**: `content:"from package" lang:python`
+    - **Config files**: `file:config`
 
-    ## Search → Explore → Refine Cycle
-    1. **Search**: Use broad terms to find relevant code
-    2. **Explore**: Use `fetch_content` on discovered repositories:
-       - Empty path for repository overview
-       - README.md and docs/ for context
-       - Common directories: src/, lib/, pkg/, app/
+    ## Progressive Search Strategy
 
-    
+    1. **Start broad**: `ProcessOrder` - search everywhere
+    2. **Find repositories**: `ProcessOrder type:repo` - discover relevant repos
+    3. **Explore with fetch_content**: use empty path for repo overview, README/docs for context
+    4. **Progressively refine**: add filters and `content:"..."` phrases
+    5. **Exclude noise**: exclude test files: `ProcessOrder -file:test lang:go`
+    6. **Target repos**: `repo:order-service ProcessOrder lang:go`
+
     ## Tips
+
     - Start simple, add filters incrementally
-    - Use quotes for exact phrases: `"error handler"`
     - Escape special chars: `\.` for literal dot
     - Combine filters: `repo:backend lang:go file:handler`
     - Don't do too complex regex searches
-    - Avoid broad searches or searching for multiple unrelated keywords in one query - this will only generate noise 
-
-    ## Recommended Workflow
-    1. First identify the repositories containing your target code
-    2. Start with moderately broad searches and progressively refine them
-    3. Use `fetch_content` with empty path to explore repository structure
-    4. Check README.md and documentation files for context
-    5. Use `fetch_content` to examine specific files from search results
-
-    Remember: Start simple, explore repositories with fetch_content, then add filters incrementally.
-
-    Use this guide to create an effective Sourcegraph query for your objective and call the search tool accordingly.
+    - Keep to 3 or fewer keywords per query
+    - Avoid broad searches with multiple unrelated keywords - this only generates noise
 
   org_guide: "" # fill this prompt with specific knowledge on your organization

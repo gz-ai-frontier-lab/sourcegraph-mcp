@@ -1,6 +1,6 @@
 from typing import Protocol, runtime_checkable
 
-MAX_FILE_SIZE = 100_000
+MAX_FILE_SIZE = 1_048_576
 
 
 @runtime_checkable
