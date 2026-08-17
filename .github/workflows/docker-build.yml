@@ -60,3 +60,8 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           no-cache: true
+          # Aliyun ACR (personal) rejects the OCI attestation manifests buildx
+          # attaches by default on GitHub Actions ("denied: unknown manifest
+          # class for application/vnd.oci.empty.v1+json"). Disable them.
+          provenance: false
+          sbom: false
