@@ -1,4 +1,4 @@
-from typing import List, Protocol, runtime_checkable
+from typing import List, Literal, Protocol, runtime_checkable
 
 from .models import FormattedResult
 
@@ -11,12 +11,15 @@ class SearchClientProtocol(Protocol):
     these methods will satisfy the protocol.
     """
 
-    def search(self, query: str, num: int) -> dict:
+    def search(self, query: str, num: int, pattern_type: Literal["standard", "keyword", "regexp"] = "standard") -> dict:
         """Execute a search query and return raw results.
 
         Args:
             query: The search query string
             num: Maximum number of results to return
+            pattern_type: Search pattern type - "standard", "keyword", or "regexp".
+                Matches the Sourcegraph web UI modes. Only used if the query doesn't
+                already contain a `patternType:` filter. (Default: "standard")
 
         Returns:
             Raw search results as a dictionary

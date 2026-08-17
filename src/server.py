@@ -2,7 +2,7 @@ import asyncio
 import logging
 import pathlib
 import signal
-from typing import Any, List
+from typing import Any, List, Literal
 
 import requests
 from dotenv import load_dotenv
@@ -73,16 +73,18 @@ class SourcegraphMCPServer:
             logger.error(f"Unexpected error fetching content: {e}")
             raise ContentFetchError("Error fetching content") from e
 
-    async def search(self, query: str, limit: int = 30) -> List[FormattedResult]:
+    async def search(
+        self, query: str, limit: int = 30, pattern_type: Literal["standard", "keyword", "regexp"] = "standard"
+    ) -> List[FormattedResult]:
         if self._shutdown_requested:
             logger.info("Shutdown in progress, declining new requests")
             raise ServerShutdownError("Server is shutting down")
 
         num_results = min(max(1, limit), 100)
-        logger.info(f"Search query: {query}, limit: {num_results}")
+        logger.info(f"Search query: {query}, limit: {num_results}, pattern_type: {pattern_type}")
 
         try:
-            results = await asyncio.to_thread(self.search_client.search, query, num_results)
+            results = await asyncio.to_thread(self.search_client.search, query, num_results, pattern_type)
             formatted_results = await asyncio.to_thread(self.search_client.format_results, results, num_results)
             return formatted_results
         except requests.exceptions.HTTPError as exc:
@@ -122,10 +124,12 @@ class SourcegraphMCPServer:
             logger.error(f"Unexpected error in fetch_content: {e}")
             return "error fetching content"
 
-    async def _safe_search(self, query: str, limit: int = 30) -> List[FormattedResult]:
+    async def _safe_search(
+        self, query: str, limit: int = 30, pattern_type: Literal["standard", "keyword", "regexp"] = "standard"
+    ) -> List[FormattedResult]:
         """Safe wrapper for search that handles exceptions."""
         try:
-            return await self.search(query, limit)
+            return await self.search(query, limit, pattern_type)
         except ServerShutdownError:
             return []
         except SearchError as e:

@@ -6,6 +6,20 @@ tools:
     **Parameters:**
     - query (required): The search query string
     - limit (optional): Maximum number of results to return (default: 30, min: 1, max: 100)
+    - pattern_type (optional): Search pattern type, matches the Sourcegraph web UI modes.
+      Must be one of: "standard" (default), "keyword", or "regexp".
+      - "standard": Standard search. Multiple whitespace-separated terms are implicitly
+        AND'd (`foo bar` matches documents containing both `foo` AND `bar`). Use `"..."` for
+        exact phrases, boolean operators (`AND`/`OR`/`NOT`), and `/.../` for inline regex.
+        This is the classic Sourcegraph search mode (the stream API default).
+      - "keyword": Keyword search. Matches individual terms anywhere in the document or
+        filename; all terms must be present (`foo bar` matches documents containing both
+        `foo` and `bar`, order-independent). Use `"..."` for exact phrases, `/.../` for
+        inline regex. This is the Sourcegraph web UI default since version 5.4.
+      - "regexp": Regular expression search. The entire query pattern is interpreted as a
+        single RE2 regex (`func.*Handler` matches that regex). Whitespace in the pattern is
+        part of the regex. No implicit term joining.
+      Note: the pattern_type is ignored if the query already contains a `patternType:` filter.
     
     **Workflow with other tools:**
     1. Call `search_prompt_guide` first when unfamiliar with query syntax
@@ -15,7 +29,7 @@ tools:
     5. Balance between search and fetch_content - search is for discovery, fetch_content is for detailed exploration
     
     **Quick Reference:**
-    - Default search: `error handler` (searches file content)
+    - Default search: `error handler` (searches file content, standard mode AND's the terms)
     - Repository filter: `repo:github\.com/org/project` (regex)
     - File path filter: `file:\.go$` or `f:src/`
     - Language filter: `lang:python` or `language:go`
@@ -23,6 +37,7 @@ tools:
     - Boolean operators: `error AND handler`, `lang:java OR lang:kotlin`
     - Symbol search: `type:symbol` for functions/classes
     - Repository search: `r:repo_name type:repo` for finding repos
+    - Regex search: pass `pattern_type: "regexp"` and use a regex query directly
 
     **Examples:**
     1. Find Go function definitions: `"func SendMessage" lang:go`
@@ -32,10 +47,12 @@ tools:
     5. Find configuration files: `f:config` or `f:\.env$`
     6. Exclude test files: `SendMessage -f:test`
     7. Find repositories: `r:github.com/kubernetes type:repo`
+    8. Regex search for function calls: pattern_type="regexp", query="fmt\.(Print|Sprint).*\("
 
     # Tips
     - Don't search for more than three different keywords at once (e.g., `foo bar baz bat`)
     - Group phrases with quotes "" and combine keywords with AND/OR operators
+    - For precise pattern matching, use pattern_type="regexp" instead of escaping special chars
     
   search_prompt_guide: >
     Generates a Sourcegraph-specific query guide to help construct effective searches.
@@ -103,16 +120,40 @@ guides:
 
     ## Search Pattern Types
 
-    ### Keyword Search (Default)
+    The `pattern_type` parameter (and the `patternType:` query filter) controls how the
+    search pattern is interpreted. This mirrors the modes in the Sourcegraph web UI.
+
+    ### Standard (pattern_type="standard", API default)
+    Whitespace between terms means implicit AND. Use `"..."` for exact phrases, `/.../`
+    for inline regex, and `AND`/`OR`/`NOT` for explicit boolean logic.
     | Pattern | Description | Example |
     |---------|-------------|---------|
-    | `foo bar` | Match both terms anywhere | `error handler` |
+    | `foo bar` | Match both terms (AND) | `error handler` |
     | `"foo bar"` | Match exact phrase | `"connection error"` |
-    | `/foo.*bar/` | Regular expression | `/func.*test/` |
+    | `/foo.*bar/` | Inline regular expression | `/func.*test/` |
     | `foo OR bar` | Match either term | `error OR warning` |
 
-    ### Regular Expression Mode
-    Enable with `patterntype:regexp` or `(.*)`  toggle.
+    ### Keyword (pattern_type="keyword", web UI default since Sourcegraph 5.4)
+    Matches individual terms anywhere in the document or filename; all terms must be
+    present (order-independent AND). Use `"..."` for exact phrases, `/.../` for inline regex.
+    | Pattern | Description | Example |
+    |---------|-------------|---------|
+    | `foo bar` | Both terms anywhere (AND) | `error handler` |
+    | `"foo bar"` | Match the string exactly | `"func main"` |
+    | `/foo.*bar/` | Inline regular expression | `/func.*test/` |
+    | `foo OR bar` | Match either term | `error OR warning` |
+
+    ### Regular Expression (pattern_type="regexp")
+    The entire pattern is interpreted as a single RE2 regular expression. Whitespace is
+    part of the regex (escape with `\ ` or use `\s` for explicit whitespace matching).
+    | Pattern | Description | Example |
+    |---------|-------------|---------|
+    | `func.*Handler` | Regex match across a line | `func.*Handler` |
+    | `fmt\.(Print\|Sprint)` | Regex with alternation | `fmt\.(Print\|Sprint)` |
+    | `func\s+Handler` | Whitespace via `\s` | `func\s+Handler` |
+
+    You can also override the mode per-query with the `patternType:` filter
+    (e.g. `test patternType:regexp`), which takes precedence over the `pattern_type` parameter.
 
     ## Filters Reference
 

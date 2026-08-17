@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Any, Dict, Iterator, List
+from typing import Any, Dict, Iterator, List, Literal
 from urllib.parse import urlencode
 
 import requests
@@ -9,6 +9,13 @@ from .models import FormattedResult, Match
 from .search_protocol import SearchClientProtocol
 
 logger = logging.getLogger(__name__)
+
+# Valid pattern types for the Sourcegraph stream search API `t` parameter.
+# See https://sourcegraph.com/docs/api/stream-api
+# Note: The stream API server-side default is "standard", but the Sourcegraph web UI
+# has defaulted to "keyword" since version 5.4. We use "standard" (the API default)
+# unless the caller explicitly requests a different mode.
+VALID_PATTERN_TYPES = ("standard", "keyword", "regexp")
 
 
 class SSEParser:
@@ -94,19 +101,27 @@ class SourcegraphClient(SearchClientProtocol):
         self.max_line_length = max_line_length
         self.max_output_length = max_output_length
 
-    def search(self, query: str, num: int) -> dict:
+    def search(self, query: str, num: int, pattern_type: Literal["standard", "keyword", "regexp"] = "standard") -> dict:
         """Execute a search query on Sourcegraph and return raw results.
 
         Args:
             query: The search query string
             num: Maximum number of results to return
+            pattern_type: Search pattern type - one of "standard", "keyword", or "regexp".
+                Matches the Sourcegraph web UI modes. Only used if the query doesn't
+                already contain a `patternType:` filter. (Default: "standard")
 
         Returns:
             Raw search results as a dictionary
         """
+        if pattern_type not in VALID_PATTERN_TYPES:
+            raise ValueError(
+                f"Invalid pattern_type '{pattern_type}'. Must be one of: {', '.join(VALID_PATTERN_TYPES)}"
+            )
+
         params = {
             "q": query,
-            "t": "keyword",
+            "t": pattern_type,
             "v": "V3",
             "cm": "true",  # chunk matches
             "cl": "5",
